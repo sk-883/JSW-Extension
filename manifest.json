@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "HTML Viewer",
+  "version": "1.0",
+  "description": "Click to view the page’s full HTML in a popup.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "action": {
+    "default_title": "View HTML",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],       
+      "js": ["contentScript.js"]
+    }
+  ]
+}
