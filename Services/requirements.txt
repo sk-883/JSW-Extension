@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+ipython
+# scikit-learn
+# diff-match-patch
+# langchain 
+# langchain_community 
+# faiss-cpu
+# sentence-transformers
+python-dotenv

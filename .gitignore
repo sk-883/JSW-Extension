@@ -1,8 +1,15 @@
-# Node Modules
-./Services/node_modules
+# Node modules (if you have a front-end)
+node_modules/
 
-#Engine
-./Services/Engine
+# Python caches
+__pycache__/
+*.pyc
 
-#Environment
-./Services/.env
+# Env files
+.env
+# — or if you prefer only the backend one:
+# /backend/.env
+
+# Docker artifacts
+*.log
+.DS_Store
