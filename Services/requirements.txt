@@ -2,6 +2,9 @@ fastapi
 uvicorn[standard]
 pydantic
 ipython
+flask
+flask-cors
+gunicorn
 # scikit-learn
 # diff-match-patch
 # langchain 
