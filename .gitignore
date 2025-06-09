@@ -1,0 +1,8 @@
+# Node Modules
+./Services/node_modules
+
+#Engine
+./Services/Engine
+
+#Environment
+./Services/.env
