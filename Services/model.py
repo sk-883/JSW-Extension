@@ -10,4 +10,4 @@ def process_html(html: str) -> str:
     # 1. parse/extract features
     # 2. run model inference
     # 3. wrap results in HTML
-    return f"<div class='analysis'>{html[:100]}…</div>"
+    return f"{html}"

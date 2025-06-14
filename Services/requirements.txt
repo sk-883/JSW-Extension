@@ -5,10 +5,9 @@ ipython
 flask
 flask-cors
 gunicorn
-# scikit-learn
-# diff-match-patch
-# langchain 
-# langchain_community 
-# faiss-cpu
-# sentence-transformers
+scikit-learn
+diff-match-patch
+langchain 
+langchain_community 
+faiss-cpu
 python-dotenv

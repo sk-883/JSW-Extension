@@ -1,20 +1,62 @@
-# app/main.py
-from flask import Flask, request, jsonify
-from config import Config
-from model import process_html
+# # app/main.py
+# from flask import Flask, request, jsonify
+# from config import Config
+# from model import process_html
 
-def app():
+# def app():
+#     app = Flask(__name__)
+#     app.config.from_object(Config)
+#     # Enable CORS, set up logging, etc.
+    
+#     @app.route('/process', methods=['POST'])
+#     def process():
+#         raw = request.get_json().get('html', '')
+#         processed = process_html(raw)
+#         return jsonify({'html': processed})
+
+#     return app
+
+# # If you want to run via `flask run`:
+# # app = app()
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=8080, debug=Config.DEBUG)
+
+
+
+from flask import Flask, request, jsonify, Response
+from config import Config
+from engine import process_html
+# from model import process_html
+from flask_cors import CORS
+
+def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-    # Enable CORS, set up logging, etc.
-    
+    CORS(app)
+
     @app.route('/process', methods=['POST'])
     def process():
-        raw = request.get_json().get('html', '')
-        processed = process_html(raw)
-        return jsonify({'html': processed})
+        ct = request.content_type or ""
+        if ct.startswith('application/json'):
+            # old behavior
+            html = request.get_json(force=True).get('html', '')
+        elif ct.startswith('text/html'):
+            # read raw HTML body
+            html = request.get_data(as_text=True)
+        else:
+            return jsonify({"error": f"Unsupported Content-Type: {ct}"}), 415
+
+        processed = process_html(html)
+
+        # If you want to return JSON-wrapped HTML:
+        # return jsonify({'html': processed})
+
+        # OR return raw HTML directly:
+        return Response(processed, content_type='text/html; charset=utf-8')
 
     return app
 
-# If you want to run via `flask run`:
-# app = app()
+app = create_app()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080, debug=Config.DEBUG)
