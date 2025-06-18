@@ -1,245 +1,224 @@
-# import re
-# from langchain_community.embeddings import HuggingFaceEmbeddings
-# from sklearn.metrics.pairwise import cosine_similarity
-# import numpy as np
-# import diff_match_patch as dmp_module
-# from originalText import original_text
-# from bs4 import BeautifulSoup
-# from htmlContent import your_html_content
-# from IPython.display import display, HTML
-# def process_html(html: str) -> str:
-#     # 1. parse/extract features
-#     # 2. run model inference
-#     # 3. wrap results in HTML
-#     return f"{html}"
 
-# def extract_clauses_from_text(text):
-#     # Match patterns like "1. ...", "2. ...", all the way until the next such pattern or end of string
-#     pattern = re.compile(r'(\d+\..*?)(?=\d+\.\s*|$)', re.DOTALL)
-#     clauses = pattern.findall(text)
-#     return [clause.strip() for clause in clauses if clause.strip()]
-
-# # Example: If you have the full text of original document, parse it
-
-# original_clauses = extract_clauses_from_text(original_text)
-# # print(original_clauses)
-
-
-
-
-# # Your HTML content (replace this with your actual HTML string)
-
-
-# # Parse the HTML with BeautifulSoup
-# soup = BeautifulSoup(your_html_content, 'html.parser')
-
-# # Extract all text, removing tags
-# text_content = soup.get_text(separator=' ', strip=True)
-
-# # Print the extracted text
-# revised_clauses = extract_clauses_from_text(text_content)
-# print(text_content)
-# print(revised_clauses)
-
-
-
-
-# def normalize_whitespace(text):
-#     return re.sub(r'\s+', ' ', text).strip()
-
-# def convert_diff_to_html(diff):
-#     html_output = ""
-#     for op, data in diff:
-#         if op == dmp_module.diff_match_patch.DIFF_INSERT:
-#             html_output += f'&nbsp<span style="color:red;text-decoration:line-through;">{data}</span>'
-#         elif op == dmp_module.diff_match_patch.DIFF_DELETE:
-#             html_output += f'<span style="color:red;">{data}</span>'
-#         else:
-#             html_output += f'<span>{data}</span>'
-#     return html_output
-
-# def compare_clauses_sequentially(original_clauses, revised_clauses, window=5, threshold=0.05):
-#     embedder = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")  # Fast + accurate
-#     dmp = dmp_module.diff_match_patch()
-
-#     if not original_clauses or not revised_clauses:
-#         return [f"<div style='color:red;'>{normalize_whitespace(c)}</div>" for c in original_clauses]
-
-#     comparison_results = []
-#     revised_embeddings = embedder.embed_documents(revised_clauses)
-#     used_revised = set()
-
-#     for i, orig_clause in enumerate(original_clauses):
-#         orig_emb = embedder.embed_query(orig_clause)
-
-#         # Define matching window
-#         start = max(0, i - window)
-#         end = min(len(revised_clauses), i + window + 1)
-#         candidates = revised_clauses[start:end]
-#         candidate_embeddings = revised_embeddings[start:end]
-
-#         if not candidates:
-#             comparison_results.append(
-#                 f"<div style='font-family:Courier; font-size:15px; white-space:pre-wrap; color:red;'>{normalize_whitespace(orig_clause)}</div>"
-#             )
-#             continue
-
-#         # Compute cosine similarity
-#         sims = cosine_similarity([orig_emb], candidate_embeddings)[0]
-#         best_idx = int(np.argmax(sims))
-#         best_score = sims[best_idx]
-#         actual_rev_idx = start + best_idx
-#         rev_clause = revised_clauses[actual_rev_idx]
-
-#         if best_score > threshold and actual_rev_idx not in used_revised:
-#             used_revised.add(actual_rev_idx)
-#             orig_norm = normalize_whitespace(orig_clause)
-#             rev_norm = normalize_whitespace(rev_clause)
-#             diffs = dmp.diff_main(orig_norm, rev_norm)
-#             dmp.diff_cleanupSemantic(diffs)
-#             html_result = convert_diff_to_html(diffs)
-#             comparison_results.append(
-#                 f"<div style='font-family:Courier; font-size:15px; white-space:pre-wrap;'>{html_result}</div>"
-#             )
-#         else:
-#             orig_norm = normalize_whitespace(orig_clause)
-#             comparison_results.append(
-#                 f"<div style='font-family:Courier; font-size:15px; white-space:pre-wrap; color:red;'>{orig_norm}</div>"
-#             )
-
-#     return comparison_results
-# #BAAI/bge-m3 # First and best until now at 0.45 similarity parameter
-# #intfloat/e5-large-v2 not that good
-
-
-
-
-
-# def format_clause_html(html_text):
-#     # 1. Handle ## → double line break
-#     html_text = html_text.replace('##', '<br><br>')
-
-#     # 2. Handle # → single line break
-#     html_text = html_text.replace('#', '<br>')
-
-#     return html_text
-
-# def display_comparison_results(comparison_results):
-#     full_html = "<html><body style='font-family:Courier; font-size:15px; white-space:pre-wrap;'>"
-#     full_html += "<br>".join(format_clause_html(clause_html) for clause_html in comparison_results)
-#     full_html += "</body></html>"
-
-#     display(HTML(full_html))
-#     print("Comparison results displayed above.")
-
-# # Example usage (assuming comparison_results is already generated)
-# comparison_results = compare_clauses_sequentially(original_clauses, revised_clauses)
-# display_comparison_results(comparison_results)
-
-
-# html_processor.py
-
+# ─── IMPORTS ─────────────────────────────────────────────────────────────────────
 import re
 import numpy as np
 import diff_match_patch as dmp_module
-from bs4 import BeautifulSoup
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from sklearn.metrics.pairwise import cosine_similarity
+import html2text
 
-# ─── GLOBAL INITIALIZATION ─────────────────────────────────────────────────
+from html2text import html2text
+from sentence_transformers import SentenceTransformer, util
+from sentence_transformers.util import cos_sim
+from IPython.display import display, HTML
 
-# 1) Pre-load your embedder so you don't pay the model-load cost per request
-EMBEDDER = HuggingFaceEmbeddings(model_name="mixedbread-ai/mxbai-embed-large-v1")
-# warm up
-_EMBED_WARM = EMBEDDER.embed_query("warmup")
 
-# 2) Pre-load your diff engine
-DIFF_ENGINE = dmp_module.diff_match_patch()
 
-# ─── UTILITIES ────────────────────────────────────────────────────────────────
+# ─── GLOBAL INITIALIZATION ───────────────────────────────────────────────────────
+# Pre-load your embedding model so you only pay the load cost once
+_EMBED_MODEL = SentenceTransformer("mixedbread-ai/mxbai-embed-large-v1")
+_EMBED_WARM = _EMBED_MODEL.encode("warmup")
+
+# Pre-load your diff engine
+_DIFF_ENGINE = dmp_module.diff_match_patch()
+
+
+# ─── UTILITY FUNCTIONS ───────────────────────────────────────────────────────────
 
 def normalize_whitespace(text: str) -> str:
     return re.sub(r'\s+', ' ', text).strip()
 
-def extract_clauses_from_text(text: str) -> list[str]:
-    pattern = re.compile(r'(\d+\..*?)(?=\d+\.\s*|$)', re.DOTALL)
-    return [clause.strip() for clause in pattern.findall(text) if clause.strip()]
 
-def convert_diff_to_html(diffs: list[tuple[int,str]]) -> str:
-    out = []
+def convert_diff_to_html(diffs: list[tuple[int, str]]) -> str:
+    html_output = ""
     for op, data in diffs:
         if op == dmp_module.diff_match_patch.DIFF_INSERT:
-            out.append(f'&nbsp;<span style="color:red;text-decoration:line-through;">{data}</span>')
+            html_output += f'&nbsp;<span style="color:red;text-decoration:line-through;">{data}</span>'
         elif op == dmp_module.diff_match_patch.DIFF_DELETE:
-            out.append(f'<span style="color:red;">{data}</span>')
+            html_output += f'<span style="color:red;">{data}</span>'
         else:
-            out.append(f'<span>{data}</span>')
-    return "".join(out)
+            html_output += f'<span>{data}</span>'
+    return html_output
+
+
+def extract_clauses_from_text(text: str) -> list[str]:
+    lines = text.splitlines()
+    clauses = []
+    current = ""
+    pattern = re.compile(r'^(c\d+)\.?\s+(.*)', re.IGNORECASE)
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        match = pattern.match(line)
+        if match:
+            if current:
+                clauses.append(current.strip())
+            current = f"{match.group(1).upper()}. {match.group(2)}"
+        else:
+            current += " " + line
+
+    if current:
+        clauses.append(current.strip())
+    return clauses
+
+
+def alpha_end_all_lines(text: str) -> str:
+    lines = text.splitlines()
+    return "\n".join(line + "α" for line in lines)
+
+
+def extract_with_html2text(html: str) -> str:
+    handler = html2text.HTML2Text()
+    handler.ignore_links = True
+    handler.ignore_emphasis = True
+    handler.ignore_images = True
+    handler.body_width = 0
+    handler.single_line_break = True
+    handler.unicode_snob = True
+
+    text = handler.handle(html)
+    return text.replace("|", "").replace("~", "").replace("-", "")
+
+
+def extract_between_markers_from_html(html: str, start_marker: str, end_marker: str) -> str:
+    plain = extract_with_html2text(html)
+    s = plain.find(start_marker)
+    e = plain.find(end_marker)
+
+    if 0 <= s < e:
+        return plain[s + len(start_marker):e]
+    if s != -1:
+        return plain[s + len(start_marker):]
+    if e != -1:
+        return plain[:e]
+    return plain
+
 
 def format_clause_html(html_text: str) -> str:
-    return html_text.replace('##', '<br><br>').replace('#', '<br>')
+    # Re-interpret our α marker as a line break
+    return html_text.replace("α", "<br>")
 
-# ─── CORE LOGIC ────────────────────────────────────────────────────────────────
 
-def process_html(html: str,
-                 window: int = 5,
-                 threshold: float = 0.05) -> str:
-    """
-    1) Parse the raw `html` string, extract text clauses
-    2) Embed and compare against original_text clauses
-    3) Return a single HTML string showing diffs and highlights
-    """
-    # --- 1) Extract text and clauses from incoming HTML
-    soup = BeautifulSoup(html, 'html.parser')
-    text_content = soup.get_text(separator=' ', strip=True)
-    revised_clauses = extract_clauses_from_text(text_content)
+# ─── CORE LOGIC ─────────────────────────────────────────────────────────────────
 
-    # --- 2) Original clauses (imported from your module)
-    from originalText import original_text
-    original_clauses = extract_clauses_from_text(original_text)
-
-    # early exit
+def compare_clauses_sequentially(
+    original_clauses: list[str],
+    revised_clauses: list[str],
+    window: int = 3,
+    threshold: float = 0.5
+) -> list[str]:
     if not original_clauses:
-        return "<div style='color:red;'>No original clauses to compare.</div>"
+        return []
+    if not revised_clauses:
+        return [
+            f"<div style='color:red;'>{normalize_whitespace(c)}</div>"
+            for c in original_clauses
+        ]
 
-    # embed all revised clauses once
-    revised_embeddings = EMBEDDER.embed_documents(revised_clauses)
+    # Load a fresh model instance per call (matches original logic)
+    model = SentenceTransformer("mixedbread-ai/mxbai-embed-large-v1")
+    dmp = dmp_module.diff_match_patch()
 
-    results = []
+    orig_norm = [normalize_whitespace(c) for c in original_clauses]
+    rev_norm  = [normalize_whitespace(c) for c in revised_clauses]
+
+    orig_embs = model.encode(orig_norm, batch_size=64, show_progress_bar=True)
+    rev_embs  = model.encode(rev_norm,  batch_size=64, show_progress_bar=True)
+
     used = set()
-    for i, orig in enumerate(original_clauses):
-        orig_emb = EMBEDDER.embed_query(orig)
+    output = [""] * max(len(orig_norm), len(rev_norm))
 
-        # find candidates in a window
+    for i, emb in enumerate(orig_embs):
         start = max(0, i - window)
-        end   = min(len(revised_clauses), i + window + 1)
-        cands = revised_clauses[start:end]
-        cand_embs = revised_embeddings[start:end]
+        end   = min(len(rev_embs), i + window + 1)
+        sims  = util.cos_sim(emb, rev_embs[start:end])[0]
+        jbest = int(np.argmax(sims))
+        score = float(sims[jbest])
+        ridx  = start + jbest
 
-        if not cands:
-            # no candidate → highlight missing
-            html = normalize_whitespace(orig)
-            results.append(f"<div style='color:red;'>{html}</div>")
-            continue
-
-        sims = cosine_similarity([orig_emb], cand_embs)[0]
-        j_best = int(np.argmax(sims))
-        score  = sims[j_best]
-        rev_i  = start + j_best
-        rev    = revised_clauses[rev_i]
-
-        if score > threshold and rev_i not in used:
-            used.add(rev_i)
-            diffs = DIFF_ENGINE.diff_main(normalize_whitespace(orig),
-                                          normalize_whitespace(rev))
-            DIFF_ENGINE.diff_cleanupSemantic(diffs)
-            diff_html = convert_diff_to_html(diffs)
-            results.append(f"<div style='white-space:pre-wrap;'>{diff_html}</div>")
+        if score > threshold and ridx not in used:
+            diffs = dmp.diff_main(orig_norm[i], rev_norm[ridx])
+            dmp.diff_cleanupSemantic(diffs)
+            output[i] = (
+                f"<div style='font-family:Courier; font-size:15px; "
+                f"white-space:pre-wrap;'>{convert_diff_to_html(diffs)}</div>"
+            )
+            used.add(ridx)
         else:
-            # treat as deleted / unmatched
-            html = normalize_whitespace(orig)
-            results.append(f"<div style='white-space:pre-wrap; color:red;'>{html}</div>")
+            output[i] = (
+                f"<div style='font-family:Courier; font-size:15px; "
+                f"white-space:pre-wrap; color:red;'>{orig_norm[i]}</div>"
+            )
 
-    # ─── 3) Wrap up into a full HTML page
-    body = "<br>".join(format_clause_html(r) for r in results)
-    return f"<html><body style='font-family:Courier; font-size:15px;'>{body}</body></html>"
+    # Append any unmatched revised clauses as red-striked
+    for idx, clause in enumerate(rev_norm):
+        if idx not in used:
+            strike = (
+                f"<div style='font-family:Courier; font-size:15px; "
+                f"white-space:pre-wrap; color:red; text-decoration:line-through;'>"
+                f"{clause}</div>"
+            )
+            if idx < len(output) and not output[idx]:
+                output[idx] = strike
+            else:
+                output.append(strike)
+
+    return output
+
+
+# ─── EXAMPLE USAGE ──────────────────────────────────────────────────────────────
+
+
+
+
+# original_text--->Clauses--->From the USer manual Input.
+# initial_marker, final_marker--->From the USer manual Input.
+# your_html_content--->Page ka tml-->utomatic scrapping.
+
+
+# 1) Prepare original clauses
+original_text = """
+C1.	ALL NEGOS / EVENTUAL FIXTURE TO BE KEPT PRIVATE AND CONFIDENTIAL.
+*****
+"""
+original_text = alpha_end_all_lines(original_text)
+
+
+original_clauses = extract_clauses_from_text(original_text)
+print(original_clauses)
+
+# 2) Extract relevant snippet from HTML
+# inject html here from the original req.
+
+ = """<>"""
+initial_marker = "Mon 6/16/2025 11:20 AM"
+final_marker   = "*****"
+relevant_text  = extract_between_markers_from_html(
+    your_html_content, initial_marker, final_marker
+)
+
+# 3) Clause extraction
+revised_clauses = extract_clauses_from_text(relevant_text)
+print(revised_clauses)
+
+# 4) Compute window dynamically and compare
+window = int(abs(len(revised_clauses) - len(original_clauses)) * 1.5 + 5)
+print("Window size:", window)
+
+comparison_results = compare_clauses_sequentially(
+    original_clauses, revised_clauses, window
+)
+
+# 5) Display as HTML in a notebook
+def display_comparison_results(results: list[str]) -> None:
+    full_html = (
+        "<html><body style='font-family:Courier; font-size:15px; "
+        "white-space:pre-wrap;'>"
+        + "".join(format_clause_html(r) for r in results)
+        + "</body></html>"
+    )
+    # display(HTML(full_html))
+    # print("Comparison results displayed above.")
+
+display_comparison_results(comparison_results)
+
