@@ -41,7 +41,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install sentence_transformers
 RUN pip install numpy
-RUN pip install bs4
+
 
 # Copy application code
 COPY . .

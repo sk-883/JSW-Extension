@@ -7,7 +7,6 @@ flask-cors
 gunicorn
 scikit-learn
 diff-match-patch
-langchain 
-langchain_community 
-faiss-cpu
+sentence_transformers
 python-dotenv
+html2text
